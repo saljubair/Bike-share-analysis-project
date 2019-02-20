@@ -1,0 +1,1185 @@
+{
+ "cells": [
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "# 2016 US Bike Share Activity Snapshot\n",
+    "\n",
+    "## Table of Contents\n",
+    "- [Introduction](#intro)\n",
+    "- [Posing Questions](#pose_questions)\n",
+    "- [Data Collection and Wrangling](#wrangling)\n",
+    "  - [Condensing the Trip Data](#condensing)\n",
+    "- [Exploratory Data Analysis](#eda)\n",
+    "  - [Statistics](#statistics)\n",
+    "  - [Visualizations](#visualizations)\n",
+    "- [Performing Your Own Analysis](#eda_continued)\n",
+    "- [Conclusions](#conclusions)\n",
+    "\n",
+    "<a id='intro'></a>\n",
+    "## Introduction\n",
+    "\n",
+    "> **Tip**: Quoted sections like this will provide helpful instructions on how to navigate and use a Jupyter notebook.\n",
+    "\n",
+    "Over the past decade, bicycle-sharing systems have been growing in number and popularity in cities across the world. Bicycle-sharing systems allow users to rent bicycles for short trips, typically 30 minutes or less. Thanks to the rise in information technologies, it is easy for a user of the system to access a dock within the system to unlock or return bicycles. These technologies also provide a wealth of data that can be used to explore how these bike-sharing systems are used.\n",
+    "\n",
+    "In this project, you will perform an exploratory analysis on data provided by [Motivate](https://www.motivateco.com/), a bike-share system provider for many major cities in the United States. You will compare the system usage between three large cities: New York City, Chicago, and Washington, DC. You will also see if there are any differences within each system for those users that are registered, regular users and those users that are short-term, casual users."
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "<a id='pose_questions'></a>\n",
+    "## Posing Questions\n",
+    "\n",
+    "Before looking at the bike sharing data, you should start by asking questions you might want to understand about the bike share data. Consider, for example, if you were working for Motivate. What kinds of information would you want to know about in order to make smarter business decisions? If you were a user of the bike-share service, what factors might influence how you would want to use the service?\n",
+    "\n",
+    "**Question 1**: Write at least two questions related to bike sharing that you think could be answered by data.\n",
+    "\n",
+    "**Answer**: \n",
+    "<br>1- What is the usage rate of the bike-share system in each city (on average and over certain time).\n",
+    "<br>2- What are the factors that affect (either increase or decrease) the usage rate.\n",
+    "<br>3- What is the users' behaviour including (registered, regular, casual and short-term users), this behaviour include:\n",
+    "   - Rental duration\n",
+    "   - Number of rental time\n",
+    "   - Pick up and return places\n",
+    "   - Payment methods\n",
+    "\n",
+    "> **Tip**: If you double click on this cell, you will see the text change so that all of the formatting is removed. This allows you to edit this block of text. This block of text is written using [Markdown](http://daringfireball.net/projects/markdown/syntax), which is a way to format text using headers, links, italics, and many other options using a plain-text syntax. You will also use Markdown later in the Nanodegree program. Use **Shift** + **Enter** or **Shift** + **Return** to run the cell and show its rendered form."
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "<a id='wrangling'></a>\n",
+    "## Data Collection and Wrangling\n",
+    "\n",
+    "Now it's time to collect and explore our data. In this project, we will focus on the record of individual trips taken in 2016 from our selected cities: New York City, Chicago, and Washington, DC. Each of these cities has a page where we can freely download the trip data.:\n",
+    "\n",
+    "- New York City (Citi Bike): [Link](https://www.citibikenyc.com/system-data)\n",
+    "- Chicago (Divvy): [Link](https://www.divvybikes.com/system-data)\n",
+    "- Washington, DC (Capital Bikeshare): [Link](https://www.capitalbikeshare.com/system-data)\n",
+    "\n",
+    "If you visit these pages, you will notice that each city has a different way of delivering its data. Chicago updates with new data twice a year, Washington DC is quarterly, and New York City is monthly. **However, you do not need to download the data yourself.** The data has already been collected for you in the `/data/` folder of the project files. While the original data for 2016 is spread among multiple files for each city, the files in the `/data/` folder collect all of the trip data for the year into one file per city. Some data wrangling of inconsistencies in timestamp format within each city has already been performed for you. In addition, a random 2% sample of the original data is taken to make the exploration more manageable. \n",
+    "\n",
+    "**Question 2**: However, there is still a lot of data for us to investigate, so it's a good idea to start off by looking at one entry from each of the cities we're going to analyze. Run the first code cell below to load some packages and functions that you'll be using in your analysis. Then, complete the second code cell to print out the first trip recorded from each of the cities (the second line of each data file).\n",
+    "\n",
+    "> **Tip**: You can run a code cell like you formatted Markdown cells above by clicking on the cell and using the keyboard shortcut **Shift** + **Enter** or **Shift** + **Return**. Alternatively, a code cell can be executed using the **Play** button in the toolbar after selecting it. While the cell is running, you will see an asterisk in the message to the left of the cell, i.e. `In [*]:`. The asterisk will change into a number to show that execution has completed, e.g. `In [1]`. If there is output, it will show up as `Out [1]:`, with an appropriate number to match the \"In\" number."
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 31,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "## import all necessary packages and functions.\n",
+    "import csv # read and write csv files\n",
+    "from datetime import datetime # operations to parse dates\n",
+    "from pprint import pprint # use to print data structures like dictionaries in\n",
+    "                          # a nicer way than the base print function."
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 32,
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "\n",
+      "City: NYC\n",
+      "OrderedDict([('tripduration', '839'),\n",
+      "             ('starttime', '1/1/2016 00:09:55'),\n",
+      "             ('stoptime', '1/1/2016 00:23:54'),\n",
+      "             ('start station id', '532'),\n",
+      "             ('start station name', 'S 5 Pl & S 4 St'),\n",
+      "             ('start station latitude', '40.710451'),\n",
+      "             ('start station longitude', '-73.960876'),\n",
+      "             ('end station id', '401'),\n",
+      "             ('end station name', 'Allen St & Rivington St'),\n",
+      "             ('end station latitude', '40.72019576'),\n",
+      "             ('end station longitude', '-73.98997825'),\n",
+      "             ('bikeid', '17109'),\n",
+      "             ('usertype', 'Customer'),\n",
+      "             ('birth year', ''),\n",
+      "             ('gender', '0')])\n",
+      "\n",
+      "City: Chicago\n",
+      "OrderedDict([('trip_id', '9080545'),\n",
+      "             ('starttime', '3/31/2016 23:30'),\n",
+      "             ('stoptime', '3/31/2016 23:46'),\n",
+      "             ('bikeid', '2295'),\n",
+      "             ('tripduration', '926'),\n",
+      "             ('from_station_id', '156'),\n",
+      "             ('from_station_name', 'Clark St & Wellington Ave'),\n",
+      "             ('to_station_id', '166'),\n",
+      "             ('to_station_name', 'Ashland Ave & Wrightwood Ave'),\n",
+      "             ('usertype', 'Subscriber'),\n",
+      "             ('gender', 'Male'),\n",
+      "             ('birthyear', '1990')])\n",
+      "\n",
+      "City: Washington\n",
+      "OrderedDict([('Duration (ms)', '427387'),\n",
+      "             ('Start date', '3/31/2016 22:57'),\n",
+      "             ('End date', '3/31/2016 23:04'),\n",
+      "             ('Start station number', '31602'),\n",
+      "             ('Start station', 'Park Rd & Holmead Pl NW'),\n",
+      "             ('End station number', '31207'),\n",
+      "             ('End station', 'Georgia Ave and Fairmont St NW'),\n",
+      "             ('Bike number', 'W20842'),\n",
+      "             ('Member Type', 'Registered')])\n"
+     ]
+    }
+   ],
+   "source": [
+    "def print_first_point(filename):\n",
+    "    \"\"\"\n",
+    "    This function prints and returns the first data point (second row) from\n",
+    "    a csv file that includes a header row.\n",
+    "    \"\"\"\n",
+    "    # print city name for reference\n",
+    "    city = filename.split('-')[0].split('/')[-1]\n",
+    "    print('\\nCity: {}'.format(city))\n",
+    "    \n",
+    "    with open(filename, 'r') as f_in:\n",
+    "        ## TODO: Use the csv library to set up a DictReader object. ##\n",
+    "        ## see https://docs.python.org/3/library/csv.html           ##\n",
+    "        trip_reader = csv.DictReader(f_in)\n",
+    "        \n",
+    "        ## TODO: Use a function on the DictReader object to read the     ##\n",
+    "        ## first trip from the data file and store it in a variable.     ##\n",
+    "        ## see https://docs.python.org/3/library/csv.html#reader-objects ##\n",
+    "        first_trip = next(trip_reader)\n",
+    "        \n",
+    "        ## TODO: Use the pprint library to print the first trip. ##\n",
+    "        ## see https://docs.python.org/3/library/pprint.html     ##\n",
+    "        pprint (first_trip)\n",
+    "        \n",
+    "    # output city name and first trip for later testing\n",
+    "    return (city, first_trip)\n",
+    "\n",
+    "# list of files for each city\n",
+    "data_files = ['./data/NYC-CitiBike-2016.csv',\n",
+    "              './data/Chicago-Divvy-2016.csv',\n",
+    "              './data/Washington-CapitalBikeshare-2016.csv',]\n",
+    "\n",
+    "# print the first trip from each file, store in dictionary\n",
+    "example_trips = {}\n",
+    "for data_file in data_files:\n",
+    "    city, first_trip = print_first_point(data_file)\n",
+    "    example_trips[city] = first_trip"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "If everything has been filled out correctly, you should see below the printout of each city name (which has been parsed from the data file name) that the first trip has been parsed in the form of a dictionary. When you set up a `DictReader` object, the first row of the data file is normally interpreted as column names. Every other row in the data file will use those column names as keys, as a dictionary is generated for each row.\n",
+    "\n",
+    "This will be useful since we can refer to quantities by an easily-understandable label instead of just a numeric index. For example, if we have a trip stored in the variable `row`, then we would rather get the trip duration from `row['duration']` instead of `row[0]`.\n",
+    "\n",
+    "<a id='condensing'></a>\n",
+    "### Condensing the Trip Data\n",
+    "\n",
+    "It should also be observable from the above printout that each city provides different information. Even where the information is the same, the column names and formats are sometimes different. To make things as simple as possible when we get to the actual exploration, we should trim and clean the data. Cleaning the data makes sure that the data formats across the cities are consistent, while trimming focuses only on the parts of the data we are most interested in to make the exploration easier to work with.\n",
+    "\n",
+    "You will generate new data files with five values of interest for each trip: trip duration, starting month, starting hour, day of the week, and user type. Each of these may require additional wrangling depending on the city:\n",
+    "\n",
+    "- **Duration**: This has been given to us in seconds (New York, Chicago) or milliseconds (Washington). A more natural unit of analysis will be if all the trip durations are given in terms of minutes.\n",
+    "- **Month**, **Hour**, **Day of Week**: Ridership volume is likely to change based on the season, time of day, and whether it is a weekday or weekend. Use the start time of the trip to obtain these values. The New York City data includes the seconds in their timestamps, while Washington and Chicago do not. The [`datetime`](https://docs.python.org/3/library/datetime.html) package will be very useful here to make the needed conversions.\n",
+    "- **User Type**: It is possible that users who are subscribed to a bike-share system will have different patterns of use compared to users who only have temporary passes. Washington divides its users into two types: 'Registered' for users with annual, monthly, and other longer-term subscriptions, and 'Casual', for users with 24-hour, 3-day, and other short-term passes. The New York and Chicago data uses 'Subscriber' and 'Customer' for these groups, respectively. For consistency, you will convert the Washington labels to match the other two.\n",
+    "\n",
+    "\n",
+    "**Question 3a**: Complete the helper functions in the code cells below to address each of the cleaning tasks described above."
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 33,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "def duration_in_mins(datum, city):\n",
+    "    \"\"\"\n",
+    "    Takes as input a dictionary containing info about a single trip (datum) and\n",
+    "    its origin city (city) and returns the trip duration in units of minutes.\n",
+    "    \n",
+    "    Remember that Washington is in terms of milliseconds while Chicago and NYC\n",
+    "    are in terms of seconds. \n",
+    "    \n",
+    "    HINT: The csv module reads in all of the data as strings, including numeric\n",
+    "    values. You will need a function to convert the strings into an appropriate\n",
+    "    numeric type when making your transformations.\n",
+    "    see https://docs.python.org/3/library/functions.html\n",
+    "    \"\"\"\n",
+    "    \n",
+    "    # YOUR CODE HERE\n",
+    "    if city == 'NYC':\n",
+    "        duration = float(datum['tripduration']) / 60\n",
+    "    elif city == 'Chicago':\n",
+    "        duration = float(datum['tripduration']) / 60\n",
+    "    elif city == 'Washington':\n",
+    "        duration = float(datum['Duration (ms)']) / 60000\n",
+    "        \n",
+    "    return duration\n",
+    "\n",
+    "\n",
+    "# Some tests to check that your code works. There should be no output if all of\n",
+    "# the assertions pass. The `example_trips` dictionary was obtained from when\n",
+    "# you printed the first trip from each of the original data files.\n",
+    "tests = {'NYC': 13.9833,\n",
+    "         'Chicago': 15.4333,\n",
+    "         'Washington': 7.1231}\n",
+    "\n",
+    "for city in tests:\n",
+    "    assert abs(duration_in_mins(example_trips[city], city) - tests[city]) < .001"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 34,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "def time_of_trip(datum, city):\n",
+    "    \"\"\"\n",
+    "    Takes as input a dictionary containing info about a single trip (datum) and\n",
+    "    its origin city (city) and returns the month, hour, and day of the week in\n",
+    "    which the trip was made.\n",
+    "    \n",
+    "    Remember that NYC includes seconds, while Washington and Chicago do not.\n",
+    "    \n",
+    "    HINT: You should use the datetime module to parse the original date\n",
+    "    strings into a format that is useful for extracting the desired information.\n",
+    "    see https://docs.python.org/3/library/datetime.html#strftime-and-strptime-behavior\n",
+    "    \"\"\"\n",
+    "    \n",
+    "    # YOUR CODE HERE\n",
+    "    if city == 'NYC':\n",
+    "        parsed_time = datum['starttime'] \n",
+    "        parsed_time = datetime.strptime(parsed_time, '%m/%d/%Y %H:%M:%S')\n",
+    "    elif city == 'Chicago':\n",
+    "        parsed_time = datum['starttime']\n",
+    "        parsed_time = datetime.strptime(parsed_time, '%m/%d/%Y %H:%M')\n",
+    "    elif city == 'Washington':\n",
+    "        parsed_time = datum['Start date']\n",
+    "        parsed_time = datetime.strptime(parsed_time, '%m/%d/%Y %H:%M')\n",
+    "        \n",
+    "    month = parsed_time.month\n",
+    "    hour = parsed_time.hour\n",
+    "    day_of_week = parsed_time.strftime('%A')\n",
+    "   \n",
+    "    return (month, hour, day_of_week)\n",
+    "\n",
+    "\n",
+    "# Some tests to check that your code works. There should be no output if all of\n",
+    "# the assertions pass. The `example_trips` dictionary was obtained from when\n",
+    "# you printed the first trip from each of the original data files.\n",
+    "tests = {'NYC': (1, 0, 'Friday'),\n",
+    "         'Chicago': (3, 23, 'Thursday'),\n",
+    "         'Washington': (3, 22, 'Thursday')}\n",
+    "\n",
+    "for city in tests:\n",
+    "    assert time_of_trip(example_trips[city], city) == tests[city]"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 35,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "def type_of_user(datum, city):\n",
+    "    \"\"\"\n",
+    "    Takes as input a dictionary containing info about a single trip (datum) and\n",
+    "    its origin city (city) and returns the type of system user that made the\n",
+    "    trip.\n",
+    "    \n",
+    "    Remember that Washington has different category names compared to Chicago\n",
+    "    and NYC. \n",
+    "    \"\"\"\n",
+    "    \n",
+    "    # YOUR CODE HERE\n",
+    "    if city == 'NYC':\n",
+    "        user_type = datum['usertype']\n",
+    "        \n",
+    "    elif city == 'Chicago':\n",
+    "        user_type = datum['usertype']\n",
+    "        \n",
+    "    elif city == 'Washington':\n",
+    "        user_type = datum['Member Type']\n",
+    "        \n",
+    "    if user_type == 'Registered':\n",
+    "        user_type = 'Subscriber'\n",
+    "    elif user_type == 'Casual':\n",
+    "        user_type = 'Customer'\n",
+    "    \n",
+    "    return user_type\n",
+    "\n",
+    "\n",
+    "# Some tests to check that your code works. There should be no output if all of\n",
+    "# the assertions pass. The `example_trips` dictionary was obtained from when\n",
+    "# you printed the first trip from each of the original data files.\n",
+    "tests = {'NYC': 'Customer',\n",
+    "         'Chicago': 'Subscriber',\n",
+    "         'Washington': 'Subscriber'}\n",
+    "\n",
+    "for city in tests:\n",
+    "    assert type_of_user(example_trips[city], city) == tests[city]"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "**Question 3b**: Now, use the helper functions you wrote above to create a condensed data file for each city consisting only of the data fields indicated above. In the `/examples/` folder, you will see an example datafile from the [Bay Area Bike Share](http://www.bayareabikeshare.com/open-data) before and after conversion. Make sure that your output is formatted to be consistent with the example file."
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 36,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "def condense_data(in_file, out_file, city):\n",
+    "    \"\"\"\n",
+    "    This function takes full data from the specified input file\n",
+    "    and writes the condensed data to a specified output file. The city\n",
+    "    argument determines how the input file will be parsed.\n",
+    "    \n",
+    "    HINT: See the cell below to see how the arguments are structured!\n",
+    "    \"\"\"\n",
+    "    \n",
+    "    with open(out_file, 'w') as f_out, open(in_file, 'r') as f_in:\n",
+    "        # set up csv DictWriter object - writer requires column names for the\n",
+    "        # first row as the \"fieldnames\" argument\n",
+    "        out_colnames = ['duration', 'month', 'hour', 'day_of_week', 'user_type']        \n",
+    "        trip_writer = csv.DictWriter(f_out, fieldnames = out_colnames)\n",
+    "        trip_writer.writeheader()\n",
+    "        \n",
+    "        ## TODO: set up csv DictReader object ##\n",
+    "        trip_reader = csv.DictReader(f_in)\n",
+    "\n",
+    "        # collect data from and process each row\n",
+    "        for row in trip_reader:\n",
+    "            # set up a dictionary to hold the values for the cleaned and trimmed\n",
+    "            # data point\n",
+    "            new_point = {}\n",
+    "           \n",
+    "            ## TODO: use the helper functions to get the cleaned data from  ##\n",
+    "            ## the original data dictionaries.                              ##\n",
+    "            ## Note that the keys for the new_point dictionary should match ##\n",
+    "            ## the column names set in the DictWriter object above.         ##\n",
+    "            new_point['duration'] = duration_in_mins(row, city)\n",
+    "            new_point['month'] = time_of_trip(row, city)[0]\n",
+    "            new_point['hour'] = time_of_trip(row, city)[1]\n",
+    "            new_point['day_of_week'] = time_of_trip(row, city)[2]\n",
+    "            new_point['user_type'] = type_of_user(row, city)\n",
+    "            \n",
+    "           \n",
+    "\n",
+    "            ## TODO: write the processed information to the output file.     ##\n",
+    "            ## see https://docs.python.org/3/library/csv.html#writer-objects ##\n",
+    "            trip_writer.writerow(new_point)\n",
+    "            "
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 37,
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "\n",
+      "City: Washington\n",
+      "OrderedDict([('duration', '7.123116666666666'),\n",
+      "             ('month', '3'),\n",
+      "             ('hour', '22'),\n",
+      "             ('day_of_week', 'Thursday'),\n",
+      "             ('user_type', 'Subscriber')])\n",
+      "\n",
+      "City: Chicago\n",
+      "OrderedDict([('duration', '15.433333333333334'),\n",
+      "             ('month', '3'),\n",
+      "             ('hour', '23'),\n",
+      "             ('day_of_week', 'Thursday'),\n",
+      "             ('user_type', 'Subscriber')])\n",
+      "\n",
+      "City: NYC\n",
+      "OrderedDict([('duration', '13.983333333333333'),\n",
+      "             ('month', '1'),\n",
+      "             ('hour', '0'),\n",
+      "             ('day_of_week', 'Friday'),\n",
+      "             ('user_type', 'Customer')])\n"
+     ]
+    }
+   ],
+   "source": [
+    "# Run this cell to check your work\n",
+    "city_info = {'Washington': {'in_file': './data/Washington-CapitalBikeshare-2016.csv',\n",
+    "                            'out_file': './data/Washington-2016-Summary.csv'},\n",
+    "             'Chicago': {'in_file': './data/Chicago-Divvy-2016.csv',\n",
+    "                         'out_file': './data/Chicago-2016-Summary.csv'},\n",
+    "             'NYC': {'in_file': './data/NYC-CitiBike-2016.csv',\n",
+    "                     'out_file': './data/NYC-2016-Summary.csv'}}\n",
+    "\n",
+    "for city, filenames in city_info.items():\n",
+    "    condense_data(filenames['in_file'], filenames['out_file'], city)\n",
+    "    print_first_point(filenames['out_file'])"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "> **Tip**: If you save a jupyter Notebook, the output from running code blocks will also be saved. However, the state of your workspace will be reset once a new session is started. Make sure that you run all of the necessary code blocks from your previous session to reestablish variables and functions before picking up where you last left off.\n",
+    "\n",
+    "<a id='eda'></a>\n",
+    "## Exploratory Data Analysis\n",
+    "\n",
+    "Now that you have the data collected and wrangled, you're ready to start exploring the data. In this section you will write some code to compute descriptive statistics from the data. You will also be introduced to the `matplotlib` library to create some basic histograms of the data.\n",
+    "\n",
+    "<a id='statistics'></a>\n",
+    "### Statistics\n",
+    "\n",
+    "First, let's compute some basic counts. The first cell below contains a function that uses the csv module to iterate through a provided data file, returning the number of trips made by subscribers and customers. The second cell runs this function on the example Bay Area data in the `/examples/` folder. Modify the cells to answer the question below.\n",
+    "\n",
+    "**Question 4a**: Which city has the highest number of trips? Which city has the highest proportion of trips made by subscribers? Which city has the highest proportion of trips made by short-term customers?\n",
+    "\n",
+    "**Answer**:<br>\n",
+    "**NYC** *has the highest total number of trips as well as the highest proportion of trips made by subscribers where:*\n",
+    "  - Proportion of subscribers is: 88.8%  \n",
+    "  - Number of total trips is: 276798\n",
+    "  \n",
+    "**Chicago** *has the highest proportion of trips made by short-term customers where:*\n",
+    "  -  Proportion of customers is: 23.8%"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 38,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "def number_of_trips(filename):\n",
+    "    \"\"\"\n",
+    "    This function reads in a file with trip data and reports the number of\n",
+    "    trips made by subscribers, customers, and total overall.\n",
+    "    \"\"\"\n",
+    "    with open(filename, 'r') as f_in:\n",
+    "        # set up csv reader object\n",
+    "        reader = csv.DictReader(f_in)\n",
+    "        \n",
+    "        # initialize count variables\n",
+    "        n_subscribers = 0\n",
+    "        n_customers = 0\n",
+    "        \n",
+    "        # tally up ride types\n",
+    "        for row in reader:\n",
+    "            if row['user_type'] == 'Subscriber':\n",
+    "                n_subscribers += 1\n",
+    "            else:\n",
+    "                n_customers += 1\n",
+    "        \n",
+    "        # compute total number of rides\n",
+    "        n_total = n_subscribers + n_customers\n",
+    "        \n",
+    "        # return tallies as a tuple\n",
+    "        proportion_of_subscribers = n_subscribers * 100 / n_total\n",
+    "        proportion_of_customers = n_customers * 100 / n_total\n",
+    "        return(\"%.1f\" % proportion_of_subscribers, \"%.1f\" % proportion_of_customers, n_total)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 39,
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "City: NYC \n",
+      " Proportion of subscribers is: 88.8% \n",
+      " Proportion of customers is: 11.2% \n",
+      " Number of total trips is: 276798\n",
+      "City: Chicago \n",
+      " Proportion of subscribers is: 76.2% \n",
+      " Proportion of customers is: 23.8% \n",
+      " Number of total trips is: 72131\n",
+      "City: Washington \n",
+      " Proportion of subscribers is: 78.0% \n",
+      " Proportion of customers is: 22.0% \n",
+      " Number of total trips is: 66326\n"
+     ]
+    }
+   ],
+   "source": [
+    "## Modify this and the previous cell to answer Question 4a. Remember to run ##\n",
+    "## the function on the cleaned data files you created from Question 3.      ##\n",
+    "\n",
+    "data_file_NYC = './data/NYC-2016-Summary.csv'\n",
+    "data_file_Chicago = './data/Chicago-2016-Summary.csv'\n",
+    "data_file_Washington = './data/Washington-2016-Summary.csv'\n",
+    "\n",
+    "\n",
+    "print('City: NYC \\n Proportion of subscribers is: {}%'.format(number_of_trips(data_file_NYC)[0]), '\\n Proportion of customers is: {}%'.format(number_of_trips(data_file_NYC)[1]), '\\n Number of total trips is: {}'.format(number_of_trips(data_file_NYC)[2]))\n",
+    "\n",
+    "print('City: Chicago \\n Proportion of subscribers is: {}%'.format(number_of_trips(data_file_Chicago)[0]), '\\n Proportion of customers is: {}%'.format(number_of_trips(data_file_Chicago)[1]), '\\n Number of total trips is: {}'.format(number_of_trips(data_file_Chicago)[2]))\n",
+    "\n",
+    "print('City: Washington \\n Proportion of subscribers is: {}%'.format(number_of_trips(data_file_Washington)[0]), '\\n Proportion of customers is: {}%'.format(number_of_trips(data_file_Washington)[1]), '\\n Number of total trips is: {}'.format(number_of_trips(data_file_Washington)[2]))\n"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "> **Tip**: In order to add additional cells to a notebook, you can use the \"Insert Cell Above\" and \"Insert Cell Below\" options from the menu bar above. There is also an icon in the toolbar for adding new cells, with additional icons for moving the cells up and down the document. By default, new cells are of the code type; you can also specify the cell type (e.g. Code or Markdown) of selected cells from the Cell menu or the dropdown in the toolbar.\n",
+    "\n",
+    "Now, you will write your own code to continue investigating properties of the data.\n",
+    "\n",
+    "**Question 4b**: Bike-share systems are designed for riders to take short trips. Most of the time, users are allowed to take trips of 30 minutes or less with no additional charges, with overage charges made for trips of longer than that duration. What is the average trip length for each city? What proportion of rides made in each city are longer than 30 minutes?\n",
+    "\n",
+    "**Answer**: \n",
+    " - The average trips length in **NYC** is: **15 minutes** and The percentage of trips over 30 min is: **7.3%**\n",
+    " - The average trips length in **Chicago** is: **16 minutes** and The percentage of trips over 30 min is: **8.3%**\n",
+    " - The average trips length in **Washington** is: **18 minutes** and The percentage of trips over 30 min is: **10.8%**\n"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 40,
+   "metadata": {
+    "scrolled": true
+   },
+   "outputs": [],
+   "source": [
+    "## Use this and additional cells to answer Question 4b.                 ##\n",
+    "##                                                                      ##\n",
+    "## HINT: The csv module reads in all of the data as strings, including  ##\n",
+    "## numeric values. You will need a function to convert the strings      ##\n",
+    "## into an appropriate numeric type before you aggregate data.          ##\n",
+    "## TIP: For the Bay Area example, the average trip length is 14 minutes ##\n",
+    "## and 3.5% of trips are longer than 30 minutes.                        ##\n",
+    "def average_trip_length(filename):\n",
+    "    \n",
+    "    with open(filename, 'r') as f_in:\n",
+    "        # set up csv reader object\n",
+    "        reader = csv.DictReader(f_in)\n",
+    "        \n",
+    "        # initialize count variables\n",
+    "        length_of_all_trips = 0\n",
+    "        average_length = 0\n",
+    "        records = 0\n",
+    "       \n",
+    "        \n",
+    "        # compute the total trips length\n",
+    "        for row in reader:\n",
+    "            length_of_all_trips += float(row['duration'])\n",
+    "            records += 1\n",
+    "           \n",
+    "           \n",
+    "        # compute the average trips length\n",
+    "        average_length = length_of_all_trips / records\n",
+    "       \n",
+    "            \n",
+    "        \n",
+    "        # return average of total length\n",
+    "        return(int(average_length))\n"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 41,
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "The average trips length in NYC is: 15 minutes\n",
+      "The average trips length in Chicago is: 16 minutes\n",
+      "The average trips length in Washington is: 18 minutes\n"
+     ]
+    }
+   ],
+   "source": [
+    "data_file_NYC = './data/NYC-2016-Summary.csv'\n",
+    "data_file_Chicago = './data/Chicago-2016-Summary.csv'\n",
+    "data_file_Washington = './data/Washington-2016-Summary.csv'\n",
+    "print ('The average trips length in NYC is: {} minutes'.format(average_trip_length(data_file_NYC)))\n",
+    "print ('The average trips length in Chicago is: {} minutes'.format(average_trip_length(data_file_Chicago)))\n",
+    "print ('The average trips length in Washington is: {} minutes'.format(average_trip_length(data_file_Washington)))"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 42,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "def trips_over_30_minutes (filename):\n",
+    "    with open(filename, 'r') as f_in:\n",
+    "        # set up csv reader object\n",
+    "        reader = csv.DictReader(f_in)\n",
+    "        \n",
+    "        # initialize count variables\n",
+    "        rides_over_30_minutes = 0\n",
+    "        records = 0\n",
+    "        rides_over_30_minutes_percentage = 0\n",
+    "       \n",
+    "        \n",
+    "        # compute the total trips over 30 minutes\n",
+    "        for row in reader:\n",
+    "            records += 1\n",
+    "            if float(row['duration']) > 30:\n",
+    "                rides_over_30_minutes +=1\n",
+    "         \n",
+    "        # compute the percentage of rides over 30 minutes\n",
+    "        rides_over_30_minutes_percentage = float(rides_over_30_minutes * 100 / records)\n",
+    "        \n",
+    "            \n",
+    "        \n",
+    "        # return the percentage of rides over 30 minutes\n",
+    "        return(\"%.1f\" % rides_over_30_minutes_percentage)\n",
+    "\n"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 43,
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "The percentage of trips over 30 min in NYC is: 7.3%\n",
+      "The percentage of trips over 30 min in Chicago is: 8.3%\n",
+      "The percentage of trips over 30 min in Washington is: 10.8%\n"
+     ]
+    }
+   ],
+   "source": [
+    "data_file_NYC = './data/NYC-2016-Summary.csv'\n",
+    "data_file_Chicago = './data/Chicago-2016-Summary.csv'\n",
+    "data_file_Washington = './data/Washington-2016-Summary.csv'\n",
+    "print ('The percentage of trips over 30 min in NYC is: {}%'.format(trips_over_30_minutes(data_file_NYC)))\n",
+    "print ('The percentage of trips over 30 min in Chicago is: {}%'.format(trips_over_30_minutes(data_file_Chicago)))\n",
+    "print ('The percentage of trips over 30 min in Washington is: {}%'.format(trips_over_30_minutes(data_file_Washington)))"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "**Question 4c**: Dig deeper into the question of trip duration based on ridership. Choose one city. Within that city, which type of user takes longer rides on average: Subscribers or Customers?\n",
+    "\n",
+    "**Answer**: \n",
+    "**NYC** was chosen for this answer. The customers' average trips duration is longer than subscribers' average trips duration, where: \n",
+    " - The average Subscribers trips duration is 13.7 minutes\n",
+    " - The average Customers trips duration is 33.0 minutes"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 44,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "## Use this and additional cells to answer Question 4c. If you have    ##\n",
+    "## not done so yet, consider revising some of your previous code to    ##\n",
+    "## make use of functions for reusability.                              ##\n",
+    "##                                                                     ##\n",
+    "## TIP: For the Bay Area example data, you should find the average     ##\n",
+    "## Subscriber trip duration to be 9.5 minutes and the average Customer ##\n",
+    "## trip duration to be 54.6 minutes. Do the other cities have this     ##\n",
+    "## level of difference?                                                ##\n",
+    "def ave_trip_len_based_on_usertype(filename):\n",
+    "    \n",
+    "    with open(filename, 'r') as f_in:\n",
+    "        # set up csv reader object\n",
+    "        reader = csv.DictReader(f_in)\n",
+    "        \n",
+    "        # initialize count variables\n",
+    "        length_of_all_subscribers_trips = 0\n",
+    "        length_of_all_customers_trips = 0\n",
+    "        average_length_subscribers = 0\n",
+    "        average_length_customers = 0\n",
+    "        records1 = 0\n",
+    "        records2 = 0\n",
+    "       \n",
+    "        \n",
+    "        # compute the total trips length of both user type\n",
+    "        for row in reader:\n",
+    "            if row['user_type'] == 'Subscriber':\n",
+    "                records1 += 1\n",
+    "                length_of_all_subscribers_trips += float(row['duration']) \n",
+    "                \n",
+    "            \n",
+    "            elif row['user_type'] == 'Customer':\n",
+    "                records2 += 1\n",
+    "                length_of_all_customers_trips += float(row['duration'])\n",
+    "                \n",
+    "            \n",
+    "           \n",
+    "           \n",
+    "        # compute the average trips length for both subscriber and customer\n",
+    "        average_length_subscribers = length_of_all_subscribers_trips / records1\n",
+    "        average_length_customers = length_of_all_customers_trips / records2\n",
+    "       \n",
+    "            \n",
+    "        \n",
+    "        # return the average trips length for both subscriber and customer\n",
+    "        return(\"%.1f\" % average_length_subscribers, \"%.1f\" % average_length_customers)\n"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 45,
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "The average Subscribers' trips duration  in NYC is 13.7 minutes\n",
+      "The average Customers' trips duration in NYC is 33.0 minutes\n"
+     ]
+    }
+   ],
+   "source": [
+    "data_file_NYC = './data/NYC-2016-Summary.csv'\n",
+    "print (\"The average Subscribers' trips duration  in NYC is {} minutes\".format(ave_trip_len_based_on_usertype(data_file_NYC)[0]))\n",
+    "print (\"The average Customers' trips duration in NYC is {} minutes\".format(ave_trip_len_based_on_usertype(data_file_NYC)[1]))"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "<a id='visualizations'></a>\n",
+    "### Visualizations\n",
+    "\n",
+    "The last set of values that you computed should have pulled up an interesting result. While the mean trip time for Subscribers is well under 30 minutes, the mean trip time for Customers is actually _above_ 30 minutes! It will be interesting for us to look at how the trip times are distributed. In order to do this, a new library will be introduced here, `matplotlib`. Run the cell below to load the library and to generate an example plot."
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 46,
+   "metadata": {},
+   "outputs": [
+    {
+     "data": {
+      "image/png": "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\n",
+      "text/plain": [
+       "<matplotlib.figure.Figure at 0x7feafc28fc88>"
+      ]
+     },
+     "metadata": {
+      "needs_background": "light"
+     },
+     "output_type": "display_data"
+    }
+   ],
+   "source": [
+    "# load library\n",
+    "import matplotlib.pyplot as plt\n",
+    "\n",
+    "# this is a 'magic word' that allows for plots to be displayed\n",
+    "# inline with the notebook. If you want to know more, see:\n",
+    "# http://ipython.readthedocs.io/en/stable/interactive/magics.html\n",
+    "%matplotlib inline \n",
+    "\n",
+    "# example histogram, data taken from bay area sample\n",
+    "data = [ 7.65,  8.92,  7.42,  5.50, 16.17,  4.20,  8.98,  9.62, 11.48, 14.33,\n",
+    "        19.02, 21.53,  3.90,  7.97,  2.62,  2.67,  3.08, 14.40, 12.90,  7.83,\n",
+    "        25.12,  8.30,  4.93, 12.43, 10.60,  6.17, 10.88,  4.78, 15.15,  3.53,\n",
+    "         9.43, 13.32, 11.72,  9.85,  5.22, 15.10,  3.95,  3.17,  8.78,  1.88,\n",
+    "         4.55, 12.68, 12.38,  9.78,  7.63,  6.45, 17.38, 11.90, 11.52,  8.63,]\n",
+    "plt.hist(data)\n",
+    "plt.title('Distribution of Trip Durations')\n",
+    "plt.xlabel('Duration (m)')\n",
+    "plt.show()"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "In the above cell, we collected fifty trip times in a list, and passed this list as the first argument to the `.hist()` function. This function performs the computations and creates plotting objects for generating a histogram, but the plot is actually not rendered until the `.show()` function is executed. The `.title()` and `.xlabel()` functions provide some labeling for plot context.\n",
+    "\n",
+    "You will now use these functions to create a histogram of the trip times for the city you selected in question 4c. Don't separate the Subscribers and Customers for now: just collect all of the trip times and plot them."
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 47,
+   "metadata": {},
+   "outputs": [
+    {
+     "data": {
+      "image/png": "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\n",
+      "text/plain": [
+       "<matplotlib.figure.Figure at 0x7feafe6e3198>"
+      ]
+     },
+     "metadata": {
+      "needs_background": "light"
+     },
+     "output_type": "display_data"
+    }
+   ],
+   "source": [
+    "## Use this and additional cells to collect all of the trip times as a list ##\n",
+    "## and then use pyplot functions to generate a histogram of trip times.     ##\n",
+    "%matplotlib inline\n",
+    "with open ('./data/NYC-2016-Summary.csv', 'r') as f_in:\n",
+    "    reader = csv.DictReader(f_in)\n",
+    "    trips_duration_list = []\n",
+    "    \n",
+    "    # save the duration of all rides in a list \n",
+    "    for row in reader:\n",
+    "        trips_duration_list.append(float(row['duration']))\n",
+    "        \n",
+    "   \n",
+    "    # print a histogram    \n",
+    "plt.hist(trips_duration_list, range = (trips_duration_list[0], trips_duration_list[-1]))\n",
+    "plt.title('Distribution of trip duration')\n",
+    "plt.xlabel('Duration in (m)')\n",
+    "plt.show()\n",
+    "        \n"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "If you followed the use of the `.hist()` and `.show()` functions exactly like in the example, you're probably looking at a plot that's completely unexpected. The plot consists of one extremely tall bar on the left, maybe a very short second bar, and a whole lot of empty space in the center and right. Take a look at the duration values on the x-axis. This suggests that there are some highly infrequent outliers in the data. Instead of reprocessing the data, you will use additional parameters with the `.hist()` function to limit the range of data that is plotted. Documentation for the function can be found [[here]](https://matplotlib.org/devdocs/api/_as_gen/matplotlib.pyplot.hist.html#matplotlib.pyplot.hist).\n",
+    "\n",
+    "**Question 5**: Use the parameters of the `.hist()` function to plot the distribution of trip times for the Subscribers in your selected city. Do the same thing for only the Customers. Add limits to the plots so that only trips of duration less than 75 minutes are plotted. As a bonus, set the plots up so that bars are in five-minute wide intervals. For each group, where is the peak of each distribution? How would you describe the shape of each distribution?\n",
+    "\n",
+    "**Answer**: \n",
+    "\n",
+    "As shown in the graphs below:\n",
+    "\n",
+    " - The peak of the subscribers trip duration is about 0-8 minutes, the majority of the subscribers tend to rent bikes for short period between 0-15 minutes broadly speaking. \n",
+    " - The peak of the customers trip duration is about 15-22 minutes which means that customers tend to rent bikes longer than the subscribers. The majority of customers rent bikes for a period between 10-30 minutes. "
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 48,
+   "metadata": {},
+   "outputs": [
+    {
+     "data": {
+      "image/png": "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\n",
+      "text/plain": [
+       "<matplotlib.figure.Figure at 0x7feafc569e80>"
+      ]
+     },
+     "metadata": {
+      "needs_background": "light"
+     },
+     "output_type": "display_data"
+    },
+    {
+     "data": {
+      "image/png": "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\n",
+      "text/plain": [
+       "<matplotlib.figure.Figure at 0x7feafc265ac8>"
+      ]
+     },
+     "metadata": {
+      "needs_background": "light"
+     },
+     "output_type": "display_data"
+    }
+   ],
+   "source": [
+    "## Use this and additional cells to answer Question 5. ##\n",
+    "%matplotlib inline\n",
+    "with open ('./data/NYC-2016-Summary.csv', 'r') as f_in:\n",
+    "    reader = csv.DictReader(f_in)\n",
+    "    trips_duration_list_subscribers = []\n",
+    "    trips_duration_list_customers = []\n",
+    "    \n",
+    "    # save the trips duration for both subscribers and customers in two separate lists\n",
+    "    for row in reader:\n",
+    "        if row['user_type'] == 'Subscriber' and float(row['duration']) < 75:\n",
+    "            trips_duration_list_subscribers.append(float(row['duration']))\n",
+    "        \n",
+    "        elif row['user_type'] == 'Customer' and float(row['duration']) < 75:\n",
+    "            trips_duration_list_customers.append(float(row['duration']))\n",
+    "     \n",
+    "    # print two histograms for trips duration for both subscribers and customers\n",
+    "plt.hist(trips_duration_list_subscribers)\n",
+    "plt.title('Distribution of trip duration for subscribers')\n",
+    "plt.xlabel('Duration in (m)')\n",
+    "plt.show()\n",
+    "\n",
+    "plt.hist(trips_duration_list_customers)\n",
+    "plt.title('Distribution of trip duration for customers')\n",
+    "plt.xlabel('Duration in (m)')\n",
+    "plt.show()\n",
+    " \n"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {
+    "collapsed": true
+   },
+   "source": [
+    "<a id='eda_continued'></a>\n",
+    "## Performing Your Own Analysis\n",
+    "\n",
+    "So far, you've performed an initial exploration into the data available. You have compared the relative volume of trips made between three U.S. cities and the ratio of trips made by Subscribers and Customers. For one of these cities, you have investigated differences between Subscribers and Customers in terms of how long a typical trip lasts. Now it is your turn to continue the exploration in a direction that you choose. Here are a few suggestions for questions to explore:\n",
+    "\n",
+    "- How does ridership differ by month or season? Which month / season has the highest ridership? Does the ratio of Subscriber trips to Customer trips change depending on the month or season?\n",
+    "- Is the pattern of ridership different on the weekends versus weekdays? On what days are Subscribers most likely to use the system? What about Customers? Does the average duration of rides change depending on the day of the week?\n",
+    "- During what time of day is the system used the most? Is there a difference in usage patterns for Subscribers and Customers?\n",
+    "\n",
+    "If any of the questions you posed in your answer to question 1 align with the bullet points above, this is a good opportunity to investigate one of them. As part of your investigation, you will need to create a visualization. If you want to create something other than a histogram, then you might want to consult the [Pyplot documentation](https://matplotlib.org/devdocs/api/pyplot_summary.html). In particular, if you are plotting values across a categorical variable (e.g. city, user type), a bar chart will be useful. The [documentation page for `.bar()`](https://matplotlib.org/devdocs/api/_as_gen/matplotlib.pyplot.bar.html#matplotlib.pyplot.bar) includes links at the bottom of the page with examples for you to build off of for your own use.\n",
+    "\n",
+    "**Question 6**: Continue the investigation by exploring another question that could be answered by the data available. Document the question you want to explore below. Your investigation should involve at least two variables and should compare at least two groups. You should also use at least one visualization as part of your explorations.\n",
+    "\n",
+    "**Answer**: <br>\n",
+    "\n",
+    "The first two graphs answer the question:<br>\n",
+    "**Q: Is the pattern of ridership different on the weekends versus weekdays? On what days are Subscribers most likely to use the system? What about Customers?**<br>\n",
+    "We can notice that the ridership pattern differs from day to day. The graph shows that subscribers mostly using the system during weekdays compared to the weekends (the highest use rates are on Tuesdays, Wednesdays and Thursdays). Conversely, customers are using the system over the weekends more than the weekdays. This indicates that the majority of customers are likely to be tourists. \n",
+    "\n",
+    "<br>\n",
+    "\n",
+    "The second two graphs answer the question:<br>\n",
+    "**Q: During what time of day is the system used the most? Is there a difference in usage patterns for Subscribers and Customers?**<br>\n",
+    "Generally speaking, we can notice that the system in NYC is heavily used at the morning time between 7-9am for both subscribers and customers and this use during this spicefic time is likely by work commuters or customers who need to finish morning commitments or even tourists during weekends mornings. Specifically, we can notice that customers also tend to use the system during midnight and early morning hours between 23pm-7am. Remarkably, the system is not used during midday hours (between about 10am-5pm) which is normally the working hours. This is also an indication that the majority of users are using the system to commute to their work. Based on the previous analysis, we can make the following suggestions: <br>\n",
+    "\n",
+    " - Increase the bikes in places where the business entities and organisations are based.\n",
+    " - Offer competitive promotions for renters during the off-peak hours which is between 10am and 5pm."
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 49,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "## this function receives a rent_days dict to arrange it based on a given order (week starts from Mon) and return ##\n",
+    "## the re-ordered dict ##\n",
+    "def sorting_days_dict(rent_days):\n",
+    "    sorted_dict = {}\n",
+    "    sorted_dict['Mon'] = rent_days.get('Monday')\n",
+    "    sorted_dict['Tue'] = rent_days.get('Tuesday')\n",
+    "    sorted_dict['Wed'] = rent_days.get('Wednesday')\n",
+    "    sorted_dict['Thu'] = rent_days.get('Thursday')\n",
+    "    sorted_dict['Fri'] = rent_days.get('Friday')\n",
+    "    sorted_dict['Sat'] = rent_days.get('Saturday')\n",
+    "    sorted_dict['Sun'] = rent_days.get('Sunday')\n",
+    "    \n",
+    "    \n",
+    "    return sorted_dict\n",
+    "    "
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 50,
+   "metadata": {},
+   "outputs": [
+    {
+     "data": {
+      "image/png": "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\n",
+      "text/plain": [
+       "<matplotlib.figure.Figure at 0x7feafc28f0f0>"
+      ]
+     },
+     "metadata": {
+      "needs_background": "light"
+     },
+     "output_type": "display_data"
+    },
+    {
+     "data": {
+      "image/png": "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\n",
+      "text/plain": [
+       "<matplotlib.figure.Figure at 0x7feafb2c7438>"
+      ]
+     },
+     "metadata": {
+      "needs_background": "light"
+     },
+     "output_type": "display_data"
+    }
+   ],
+   "source": [
+    "## Use this and additional cells to continue to explore the dataset. ##\n",
+    "## Once you have performed your exploration, document your findings  ##\n",
+    "## in the Markdown cell above. \n",
+    "\n",
+    "%matplotlib inline\n",
+    "with open ('./data/NYC-2016-Summary.csv', 'r') as f_in:\n",
+    "    reader = csv.DictReader(f_in)\n",
+    "    subscribers_rent_days = {}\n",
+    "    customers_rent_days = {}\n",
+    "    \n",
+    "    \n",
+    "    # save the rent days and rent numbers in each day for both subscribers and customers into two separate dics\n",
+    "    for row in reader:\n",
+    "        day = row['day_of_week']\n",
+    "        if row['user_type'] == 'Subscriber' and day in subscribers_rent_days:\n",
+    "            subscribers_rent_days[day] += 1\n",
+    "        elif row['user_type'] == 'Subscriber' and day not in subscribers_rent_days:\n",
+    "            subscribers_rent_days[day] = 1\n",
+    "            \n",
+    "        elif row['user_type'] == 'Customer' and day in customers_rent_days:\n",
+    "            customers_rent_days[day] += 1\n",
+    "        elif row['user_type'] == 'Customer' and day not in customers_rent_days:\n",
+    "            customers_rent_days[day] = 1   \n",
+    "\n",
+    "# calling subscribers_rent_days function to sort the rent_days dics based on a given days order, this is to sort the bar graph\n",
+    "subscribers_rent_days = sorting_days_dict(subscribers_rent_days) \n",
+    "customers_rent_days = sorting_days_dict(customers_rent_days)\n",
+    "\n",
+    "\n",
+    "# assign the days and number of rents for each day in two seperate lists both types of users to be used in .bar plotting\n",
+    "days_name_sub = list(subscribers_rent_days.keys())\n",
+    "values_sub = list(subscribers_rent_days.values())\n",
+    "\n",
+    "days_name_cus = list(customers_rent_days.keys())\n",
+    "values_cus = list(customers_rent_days.values())\n",
+    "\n",
+    "# plot bar graphs for users' rentals over all the weekdays \n",
+    "plt.bar(range(len(subscribers_rent_days)), values_sub, tick_label = days_name_sub, width = 0.5)\n",
+    "plt.show()\n",
+    "\n",
+    "\n",
+    "plt.bar(range(len(customers_rent_days)), values_cus, tick_label = days_name_cus, width = 0.5)\n",
+    "plt.show()"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 51,
+   "metadata": {},
+   "outputs": [
+    {
+     "data": {
+      "image/png": "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\n",
+      "text/plain": [
+       "<matplotlib.figure.Figure at 0x7feafc29d550>"
+      ]
+     },
+     "metadata": {
+      "needs_background": "light"
+     },
+     "output_type": "display_data"
+    },
+    {
+     "data": {
+      "image/png": "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\n",
+      "text/plain": [
+       "<matplotlib.figure.Figure at 0x7feafb27d9b0>"
+      ]
+     },
+     "metadata": {
+      "needs_background": "light"
+     },
+     "output_type": "display_data"
+    }
+   ],
+   "source": [
+    "%matplotlib inline\n",
+    "with open ('./data/NYC-2016-Summary.csv', 'r') as f_in:\n",
+    "    reader = csv.DictReader(f_in)\n",
+    "    subscribers_rent_times = []\n",
+    "    customers_rent_times = []\n",
+    "    \n",
+    "    # save rental times for both types of users into two seperate lists\n",
+    "    for row in reader:\n",
+    "        if row['user_type'] == 'Subscriber':\n",
+    "            subscribers_rent_times.append(row['hour'])\n",
+    "            \n",
+    "        elif row['user_type'] == 'Customer':\n",
+    "            customers_rent_times.append(row['hour'])\n",
+    "        \n",
+    "# plot histograms for times of trips for both types of users        \n",
+    "plt.hist(subscribers_rent_times)\n",
+    "plt.title('times of trips for subscribers')\n",
+    "plt.xlabel('time in (24h)')\n",
+    "plt.show()\n",
+    "\n",
+    "plt.hist(customers_rent_times)\n",
+    "plt.title('times of trips for customers')\n",
+    "plt.xlabel('time in (24h)')\n",
+    "plt.show()"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "<a id='conclusions'></a>\n",
+    "## Conclusions\n",
+    "\n",
+    "Congratulations on completing the project! This is only a sampling of the data analysis process: from generating questions, wrangling the data, and to exploring the data. Normally, at this point in the data analysis process, you might want to draw conclusions about the data by performing a statistical test or fitting the data to a model for making predictions. There are also a lot of potential analyses that could be performed on the data which are not possible with only the data provided. For example, detailed location data has not been investigated. Where are the most commonly used docks? What are the most common routes? As another example, weather has potential to have a large impact on daily ridership. How much is ridership impacted when there is rain or snow? Are subscribers or customers affected more by changes in weather?\n",
+    "\n",
+    "**Question 7**: Putting the bike share data aside, think of a topic or field of interest where you would like to be able to apply the techniques of data science. What would you like to be able to learn from your chosen subject?\n",
+    "\n",
+    "**Answer**: One of the interesting fields that data science techniques would be very useful is the aviation field. We can analyse, for example, the flights times, destinations, duration and number of passengers. We can also analyse passengers patterns including their most bookings, favorite destinations, favorite routes and payments methods. We can from this analysis explore and predict better routs, better flight selections and better offers for passengers.\n",
+    "\n",
+    "> **Tip**: If we want to share the results of our analysis with others, we aren't limited to giving them a copy of the jupyter Notebook (.ipynb) file. We can also export the Notebook output in a form that can be opened even for those without Python installed. From the **File** menu in the upper left, go to the **Download as** submenu. You can then choose a different format that can be viewed more generally, such as HTML (.html) or\n",
+    "PDF (.pdf). You may need additional packages or software to perform these exports.\n",
+    "\n",
+    "> If you are working on this project via the Project Notebook page in the classroom, you can also submit this project directly from the workspace. **Before you do that**, you should save an HTML copy of the completed project to the workspace by running the code cell below. If it worked correctly, the output code should be a 0, and if you click on the jupyter icon in the upper left, you should see your .html document in the workspace directory. Alternatively, you can download the .html copy of your report following the steps in the previous paragraph, then _upload_ the report to the directory (by clicking the jupyter icon).\n",
+    "\n",
+    "> Either way, once you've gotten the .html report in your workspace, you can complete your submission by clicking on the \"Submit Project\" button to the lower-right hand side of the workspace."
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {
+    "collapsed": true
+   },
+   "outputs": [],
+   "source": [
+    "from subprocess import call\n",
+    "call(['python', '-m', 'nbconvert', 'Bike_Share_Analysis.ipynb'])"
+   ]
+  }
+ ],
+ "metadata": {
+  "anaconda-cloud": {},
+  "kernelspec": {
+   "display_name": "Python 3",
+   "language": "python",
+   "name": "python3"
+  },
+  "language_info": {
+   "codemirror_mode": {
+    "name": "ipython",
+    "version": 3
+   },
+   "file_extension": ".py",
+   "mimetype": "text/x-python",
+   "name": "python",
+   "nbconvert_exporter": "python",
+   "pygments_lexer": "ipython3",
+   "version": "3.6.3"
+  }
+ },
+ "nbformat": 4,
+ "nbformat_minor": 1
+}
